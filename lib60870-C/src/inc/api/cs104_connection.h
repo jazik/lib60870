@@ -63,6 +63,17 @@ CS104_Connection
 CS104_Connection_create(const char* hostname, int tcpPort);
 
 /**
+ * \brief Create a new connection object with udp transport
+ *
+ * \param hostname host name of IP address of the server to connect
+ * \param udpPort udp port of the server to connect. If set to -1 use default port (2404)
+ *
+ * \return the new connection object
+ */
+CS104_Connection
+CS104_Connection_createUdp(const char* hostname, int tcpPort);
+
+/**
  * \brief Create a new secure connection object (uses TLS)
  *
  * \param hostname host name of IP address of the server to connect
@@ -169,6 +180,12 @@ CS104_Connection_connect(CS104_Connection self);
  */
 void
 CS104_Connection_sendStartDT(CS104_Connection self);
+
+void
+CS104_Connection_sendConnReq(CS104_Connection self);
+
+void
+CS104_Connection_sendConnDisc(CS104_Connection self);
 
 /**
  * \brief stop data transmission on this connection

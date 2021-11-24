@@ -66,7 +66,8 @@ typedef enum {
     STATE_INACTIVE = 1,
     STATE_ACTIVE = 2,
     STATE_WAITING_FOR_STARTDT_CON = 3,
-    STATE_WAITING_FOR_STOPDT_CON = 4
+    STATE_WAITING_FOR_STOPDT_CON = 4,
+    STATE_WAITING_FOR_CONNREQ_CON = 5
 } CS104_ConState;
 
 typedef struct {
@@ -130,6 +131,8 @@ struct sCS104_Connection {
     TLSSocket tlsSocket;
 #endif
 
+    bool udp;
+
     CS101_ASDUReceivedHandler receivedHandler;
     void* receivedHandlerParameter;
 
@@ -140,6 +143,12 @@ struct sCS104_Connection {
     void* rawMessageHandlerParameter;
 };
 
+
+static uint8_t CONNREQ_ACT_MSG[] = { 0x68, 0x04, 0x03, 0x40, 0x00, 0x00 };
+#define CONNREQ_ACT_MSG_SIZE 6
+
+static uint8_t CONNDISC_ACT_MSG[] = { 0x68, 0x04, 0x03, 0x20, 0x00, 0x00 };
+#define CONNDISC_ACT_MSG_SIZE 6
 
 static uint8_t STARTDT_ACT_MSG[] = { 0x68, 0x04, 0x07, 0x00, 0x00, 0x00 };
 #define STARTDT_ACT_MSG_SIZE 6
@@ -273,6 +282,18 @@ CS104_Connection_create(const char* hostname, int tcpPort)
         tcpPort = IEC_60870_5_104_DEFAULT_PORT;
 
     return createConnection(hostname, tcpPort);
+}
+
+CS104_Connection
+CS104_Connection_createUdp(const char* hostname, int udpPort)
+{
+    CS104_Connection self = createConnection(hostname, udpPort);
+
+    if (self != NULL) {
+	self->udp = true;
+    }
+
+    return self;
 }
 
 #if (CONFIG_CS104_SUPPORT_TLS == 1)
@@ -453,6 +474,10 @@ CS104_Connection_close(CS104_Connection self)
 void
 CS104_Connection_destroy(CS104_Connection self)
 {
+    if (self->udp && self->socket) {
+	CS104_Connection_sendConnDisc(self);
+    }
+
     CS104_Connection_close(self);
 
     if (self->sentASDUs != NULL)
@@ -545,6 +570,10 @@ receiveMessage(CS104_Connection self)
 {
     uint8_t* buffer = self->recvBuffer;
     int bufPos = self->recvBufPos;
+
+    if (self->udp) {
+	return readFromSocket(self, self->recvBuffer, sizeof(self->recvBuffer));
+    }
 
     /* read start byte */
     if (bufPos == 0) {
@@ -807,7 +836,11 @@ handleConnection(void* parameter)
 
     resetConnection(self);
 
-    self->socket = TcpSocket_create();
+    if (self->udp) {
+	self->socket = (Socket)UdpSocket_create();
+    } else {
+	self->socket = TcpSocket_create();
+    }
 
     if (self->socket) {
         Socket_setConnectTimeout(self->socket, self->connectTimeoutInMs);
@@ -952,6 +985,10 @@ CS104_Connection_connect(CS104_Connection self)
     while ((self->running == false) && (self->failure == false))
         Thread_sleep(1);
 
+    if (self->udp) {
+	CS104_Connection_sendConnReq(self);
+    }
+
     return self->running;
 }
 
@@ -1014,6 +1051,32 @@ CS104_Connection_sendStartDT(CS104_Connection self)
     Semaphore_wait(self->socketWriteLock);
 #endif
     writeToSocket(self, STARTDT_ACT_MSG, STARTDT_ACT_MSG_SIZE);
+#if (CONFIG_USE_SEMAPHORES == 1)
+    Semaphore_post(self->socketWriteLock);
+#endif
+}
+
+void
+CS104_Connection_sendConnReq(CS104_Connection self)
+{
+    self->conState = STATE_WAITING_FOR_CONNREQ_CON;
+#if (CONFIG_USE_SEMAPHORES == 1)
+    Semaphore_wait(self->socketWriteLock);
+#endif
+    writeToSocket(self, CONNREQ_ACT_MSG, CONNREQ_ACT_MSG_SIZE);
+#if (CONFIG_USE_SEMAPHORES == 1)
+    Semaphore_post(self->socketWriteLock);
+#endif
+}
+
+void
+CS104_Connection_sendConnDisc(CS104_Connection self)
+{
+    self->conState = STATE_WAITING_FOR_CONNREQ_CON;
+#if (CONFIG_USE_SEMAPHORES == 1)
+    Semaphore_wait(self->socketWriteLock);
+#endif
+    writeToSocket(self, CONNDISC_ACT_MSG, CONNDISC_ACT_MSG_SIZE);
 #if (CONFIG_USE_SEMAPHORES == 1)
     Semaphore_post(self->socketWriteLock);
 #endif

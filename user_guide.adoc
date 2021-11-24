@@ -11,6 +11,7 @@ Here is a list of supported features:
 
 * CS 101 (IEC 60870-5-101) balanced and unbalanced serial modes
 * CS 104 (IEC 60870-5-104) client and server TCP/IP communication
+* CS 104 (IEC 60870-5-104) client and server UDP/IP communication
 * CS 104 supports encrypted and authenticated TLS communication
 * CS 104 uses the CS 101 application layer
 * CS 104 slave: support for redundancy groups
@@ -91,6 +92,10 @@ Since an IEC 60870-5-104 connection is based on a TCP client/server connection t
 A new connection is simple created by calling a the _CS104_Connection_create_ function of the CS104_Connection type:
 
   CS104_Connection con = CS104_Connection_create("127.0.0.1", 2404);
+
+Alternatively a UDP/IP connection can be created by calling the _CS104_Connection_createUdp_ function of the CS104_Connection type:
+
+  CS104_Connection con = CS104_Connection_createUdp("127.0.0.1", 2404);
 
 This creates a new CS104_Connection object that is ready to connect to the server. The parameters are the hostname or IP address of the server and the TCP/IP port (usually 2404). For the port parameter you can also
 set -1 to use the default port.

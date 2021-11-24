@@ -12,3 +12,4 @@ add_subdirectory(tls_client)
 add_subdirectory(tls_server)
 endif (WITH_MBEDTLS)
 
+add_subdirectory(udp_client)

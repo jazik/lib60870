@@ -5019,6 +5019,37 @@ test_BitString32xx_encodeDecode(void)
 }
 
 void
+test_CS104_Connection_Udp_CreateDestroy(void)
+{
+	CS104_Connection con = CS104_Connection_createUdp("127.0.0.1", 2404);
+
+	TEST_ASSERT_NOT_NULL(con);
+
+	CS104_Connection_destroy(con);
+}
+
+void
+test_CS104_MasterSlave_Udp_CreateDestroy(void)
+{
+	CS104_Slave slave = CS104_Slave_create(100, 100);
+
+	TEST_ASSERT_NOT_NULL(slave);
+
+	CS104_Slave_setLocalPort(slave, 20004);
+
+	CS104_Connection con = CS104_Connection_createUdp("127.0.0.1", 20004);
+
+	TEST_ASSERT_NOT_NULL(con);
+
+	CS104_Connection_connect(con);
+
+	CS104_Slave_destroy(slave);
+
+	CS104_Connection_destroy(con);
+}
+
+
+void
 test_CS104_Slave_CreateDestroy(void)
 {
 	CS104_Slave slave = CS104_Slave_create(100, 100);
@@ -5360,6 +5391,8 @@ int
 main(int argc, char** argv)
 {
     UNITY_BEGIN();
+    RUN_TEST(test_CS104_Connection_Udp_CreateDestroy);
+    RUN_TEST(test_CS104_MasterSlave_Udp_CreateDestroy);
     RUN_TEST(test_CS104_Slave_CreateDestroy);
     RUN_TEST(test_CS104_MasterSlave_CreateDestroyLoop);
     RUN_TEST(test_CS104_Connection_CreateDestroy);
